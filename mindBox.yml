@@ -1,0 +1,60 @@
+# Test MindBox
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: mindbox
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mindbox
+  namespace: mindbox
+spec:
+  replicas: 4
+  selector:
+    matchLabels:
+      app: mindbox
+  template:
+    metadata:
+      labels:
+        app: mindbox
+    spec:
+      containers:
+      - name: mindbox
+        image: httpd:2.4
+        resources:
+          requests:
+            memory: "128M"
+            cpu: "100m" # 10% cpu
+          limits:
+            memory: "128M"
+            cpu: "1000m"
+        startupProbe: #  используем startupProbe, а не Readiness  т.к. нам нужна проверка только при старте, дальше будет работать livenessProbe
+          httpGet:
+            path: /
+            port: 80
+          failureThreshold: 2 # приложениею будет дано 2*6 сек для своей инициализации, что чуть болше того, что нам необходимо
+          periodSeconds: 6
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 5
+          periodSeconds: 5 # проверяем каждые 5 сек и ждем 5 сек после startupProbe
+        ports:
+        - containerPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mindbox-service
+  namespace: mindbox
+spec:
+  type: NodePort
+  ports:
+  - port: 8081
+    targetPort: 80
+  selector:
+    app: mindbox
+
